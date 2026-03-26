@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>yaml.visual.preview.plugin.hashizume.online</id>
     <name>YAML Visual Preview</name>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <vendor>hashizume</vendor>
 
     <description><![CDATA[
@@ -10,6 +10,23 @@
         YAML hierarchical structures are mapped to Markdown-like visual elements:
         headings, tables, and lists.
     ]]></description>
+
+    <change-notes><![CDATA[
+        <h3>1.0.2</h3>
+        <ul>
+            <li>Updated change-notes</li>
+        </ul>
+        <h3>1.0.1</h3>
+        <ul>
+            <li>Updated icon and screenshot</li>
+        </ul>
+        <h3>1.0.0</h3>
+        <ul>
+            <li>Initial release</li>
+            <li>Split-pane YAML preview with styled HTML rendering</li>
+            <li>YAML hierarchical structures mapped to headings, tables, and lists</li>
+        </ul>
+    ]]></change-notes>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.plugins.yaml</depends>
