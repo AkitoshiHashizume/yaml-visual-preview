@@ -1,0 +1,21 @@
+<idea-plugin>
+    <id>yaml.visual.preview.plugin.hashizume.online</id>
+    <name>YAML Visual Preview</name>
+    <version>1.0.1</version>
+    <vendor>hashizume</vendor>
+
+    <description><![CDATA[
+        Renders YAML files as styled, readable HTML in a split-pane preview,
+        similar to the built-in Markdown preview.
+        YAML hierarchical structures are mapped to Markdown-like visual elements:
+        headings, tables, and lists.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.plugins.yaml</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <fileEditorProvider
+            implementation="yaml.visual.preview.plugin.hashizume.online.YamlPreviewFileEditorProvider"/>
+    </extensions>
+</idea-plugin>

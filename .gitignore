@@ -1,0 +1,11 @@
+build/*
+!build/distributions/
+.gradle/
+.idea/
+.intellijPlatform/
+.kotlin/
+.claude/
+*.iml
+out/
+signing/
+.DS_Store

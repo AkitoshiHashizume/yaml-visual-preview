@@ -1,0 +1,23 @@
+project:
+  name: MyApp
+  version: 2.1.0
+  language: Kotlin
+  description:
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  features:
+    - cors
+    - gzip
+  ssl:
+    cert_path: /etc/ssl/app.pem
+    key_path: /etc/ssl/app.key
+
+environments:
+  - name: development
+    debug: true
+    api_url: http://localhost:3000
+  - name: production
+    debug: false
+    api_url: https://api.example.com
