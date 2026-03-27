@@ -5,29 +5,29 @@ An IntelliJ IDEA plugin that renders YAML files as styled, readable HTML in a sp
 YAML hierarchical structures are automatically mapped to visual elements: headings, tables, and lists.
 
 ```
-┌──────────────────────────────────────────────────┐
-│  [Editor]  [Split]  [Preview]                    │
-├───────────────────────┬──────────────────────────┤
-│ project:              │ # project                │
-│   name: MyApp         │ | Key         | Value  | │
-│   version: 2.1.0      │ |-------------|--------| │
-│   language: Kotlin    │ | name        | MyApp  | │
-│   description:        │ | version     | 2.1.0  | │
-│                       │ | language    | Kotlin | │
-│ server:               │ | description |(empty) | │
-│   host: 0.0.0.0       │                          │
-│   port: 8080          │ # server                 │
-│   features:           │ | Key  | Value   |       │
-│     - cors            │ |------|---------|       │
-│     - gzip            │ | host | 0.0.0.0 |       │
-│   ssl:                │ | port | 8080    |       │
-│     cert_path: ...    │                          │
-│     key_path: ...     │ ## features              │
-│                       │  • cors                  │
-│ environments:         │  • gzip                  │
-│   - name: development │                          │
-│     ...               │ ## ssl        [− 100% +] │
-└───────────────────────┴──────────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  [Editor]  [Split]  [Preview]                        │
+├────────────────────────┬─────────────────────────────┤
+│ project:               │ # project                   │
+│   name: MyApp          │ | Key         | Value    |  │
+│   version: 2.1.0       │ |-------------|----------|  │
+│   language: Kotlin     │ | name        | MyApp    |  │
+│   description:         │ | version     | 2.1.0    |  │
+│                        │ | language    | Kotlin   |  │
+│ server:                │ | description | (empty)  |  │
+│   host: 0.0.0.0        │                             │
+│   port: 8080           │ # server                    │
+│   features:            │ | host | 0.0.0.0 |          │
+│     - cors             │ | port | 8080    |          │
+│     - gzip             │                             │
+│   ssl:                 │ ## features                 │
+│     cert_path: ...     │  • cors  • gzip             │
+│     key_path: ...      │                             │
+│                        │ ## ssl                      │
+│ environments:          │ | cert_path | /etc/.. |     │
+│   - name: development  │ | key_path  | /etc/.. |     │
+│     ...                │         [− 100% +] [1.2.3]  │
+└────────────────────────┴─────────────────────────────┘
 ```
 
 > Sample YAML: [`market/demo.yml`](market/demo.yml)
@@ -36,8 +36,9 @@ YAML hierarchical structures are automatically mapped to visual elements: headin
 
 - **Live preview** — Updates automatically as you type (300ms debounce)
 - **Structured rendering** — Mappings become headings & tables, lists become bullet points
+- **Section numbering** — Toggle hierarchical numbers (`1.`, `2.1`, `2.1.1`…) via the `1.2.3` button (off by default, state persisted)
 - **Dark / Light theme** — Follows your IDE theme automatically
-- **Zoom controls** — Scale the preview from 50% to 200%
+- **Zoom controls** — Scale the preview from 50% to 200% (state persisted)
 - **Multi-document YAML** — Supports `---` separated documents
 - **CJK support** — Proper font rendering for Japanese, Chinese, and Korean text
 - **Deep nesting** — Headings from `<h1>` to `<h6>`, with styled levels beyond 6
@@ -46,10 +47,11 @@ YAML hierarchical structures are automatically mapped to visual elements: headin
 
 | YAML Structure | Rendered As |
 |---|---|
-| Mapping keys | `<h1>` – `<h6>` headings (by depth) |
+| Mapping keys (complex values) | `<h1>` – `<h6>` headings (by depth) |
+| Mapping keys (mixed scalar entries) | Numbered heading + single-row Key/Value table |
 | All-scalar mappings | Key / Value table |
 | Scalar lists | Bulleted list (`<ul>`) |
-| Mapping lists | Sections with dashed separators |
+| Mapping lists | Numbered sections with dashed separators |
 | Null / empty values | *(empty)* placeholder |
 
 ## Requirements
@@ -102,11 +104,10 @@ src/main/kotlin/yaml/visual/preview/plugin/hashizume/online/
 
 src/main/resources/META-INF/
 ├── plugin.xml                        # Plugin descriptor
-├── pluginIcon.svg                    # Plugin icon (light theme)
-└── pluginIcon_dark.svg               # Plugin icon (dark theme)
+└── pluginIcon.svg                    # Plugin icon (light theme)
 
 src/test/kotlin/.../
-└── YamlToHtmlConverterTest.kt        # Unit tests (18 cases)
+└── YamlToHtmlConverterTest.kt        # Unit tests (21 cases)
 ```
 
 ## Tech Stack

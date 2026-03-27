@@ -50,7 +50,7 @@ class YamlToHtmlConverterTest {
               version: 1
         """.trimIndent()
         val html = converter.convert(yaml)
-        assertContains(html, "<h1>config</h1>")
+        assertContainsSectionHeading(html, "h1", "1.", "config")
         assertContains(html, "<table>")
         assertContains(html, "agent")
         assertContains(html, "claude")
@@ -65,7 +65,7 @@ class YamlToHtmlConverterTest {
               - echo hello
         """.trimIndent()
         val html = converter.convert(yaml)
-        assertContains(html, "<h1>commands</h1>")
+        assertContainsSectionHeading(html, "h1", "1.", "commands")
         assertContains(html, "<ul>")
         assertContains(html, "<li>pwd</li>")
         assertContains(html, "<li>ls -la</li>")
@@ -82,8 +82,10 @@ class YamlToHtmlConverterTest {
                 value: 200
         """.trimIndent()
         val html = converter.convert(yaml)
-        assertContains(html, "<h1>items</h1>")
+        assertContainsSectionHeading(html, "h1", "1.", "items")
+        assertContainsSectionNumber(html, "h2", "1.1")
         assertContains(html, "item1")
+        assertContainsSectionNumber(html, "h2", "1.2")
         assertContains(html, "item2")
         assertContains(html, "list-separator")
         assertContains(html, "list-item")
@@ -112,13 +114,15 @@ class YamlToHtmlConverterTest {
                           key: deep_value
         """.trimIndent()
         val html = converter.convert(yaml)
-        assertContains(html, "<h1>level1</h1>")
-        assertContains(html, "<h2>level2</h2>")
-        assertContains(html, "<h3>level3</h3>")
-        assertContains(html, "<h4>level4</h4>")
-        assertContains(html, "<h5>level5</h5>")
-        assertContains(html, "<h6>level6</h6>")
+        assertContainsSectionHeading(html, "h1", "1.", "level1")
+        assertContainsSectionHeading(html, "h2", "1.1", "level2")
+        assertContainsSectionHeading(html, "h3", "1.1.1", "level3")
+        assertContainsSectionHeading(html, "h4", "1.1.1.1", "level4")
+        assertContainsSectionHeading(html, "h5", "1.1.1.1.1", "level5")
+        assertContainsSectionHeading(html, "h6", "1.1.1.1.1.1", "level6")
         assertContains(html, "heading-deep")
+        assertContains(html, "section-number")
+        assertContains(html, "1.1.1.1.1.1.1")
         assertContains(html, "level7")
         assertContains(html, "deep_value")
     }
@@ -190,12 +194,15 @@ class YamlToHtmlConverterTest {
               nested_key: nested_value
         """.trimIndent()
         val html = converter.convert(yaml)
-        // Scalars should be in a table
+        // Each entry gets its own section number
+        assertContainsSectionNumber(html, "h1", "1.")
         assertContains(html, "agent")
         assertContains(html, "claude")
-        // Complex values should have headings
-        assertContains(html, "<h1>commands</h1>")
-        assertContains(html, "<h1>data</h1>")
+        assertContainsSectionNumber(html, "h1", "2.")
+        assertContains(html, "version")
+        // Complex values should have headings with text
+        assertContainsSectionHeading(html, "h1", "3.", "commands")
+        assertContainsSectionHeading(html, "h1", "4.", "data")
     }
 
     @Test
@@ -233,13 +240,18 @@ class YamlToHtmlConverterTest {
                   - mock0
         """.trimIndent()
         val html = converter.convert(yaml)
-        assertContains(html, "<h1>config</h1>")
-        assertContains(html, "<h1>batch</h1>")
+        assertContainsSectionHeading(html, "h1", "1.", "config")
+        assertContainsSectionHeading(html, "h1", "2.", "batch")
+        assertContainsSectionNumber(html, "h2", "2.1")
         assertContains(html, "mock0")
+        assertContains(html, "2.1.1")
+        assertContains(html, "data")
+        assertContainsSectionNumber(html, "h2", "2.2")
         assertContains(html, "mock1")
+        assertContains(html, "2.2.1")
+        assertContains(html, "blocked_by")
         assertContains(html, "ファイルPath")
         assertContains(html, "mock/proposal_1.md")
-        assertContains(html, "blocked_by")
     }
 
     @Test
@@ -259,9 +271,80 @@ class YamlToHtmlConverterTest {
         assertContains(html, "(empty list)")
     }
 
+    @Test
+    fun `headings have hierarchical section numbers`() {
+        val yaml = """
+            project:
+              name: MyApp
+            server:
+              host: 0.0.0.0
+              features:
+                - cors
+              ssl:
+                cert_path: /etc/ssl/app.pem
+        """.trimIndent()
+        val html = converter.convert(yaml)
+        assertContainsSectionHeading(html, "h1", "1.", "project")
+        assertContainsSectionHeading(html, "h1", "2.", "server")
+        assertContainsSectionNumber(html, "h2", "2.1")   // host (scalar)
+        assertContainsSectionHeading(html, "h2", "2.2", "features")
+        assertContainsSectionHeading(html, "h2", "2.3", "ssl")
+    }
+
+    @Test
+    fun `section numbers reset when returning to parent level`() {
+        val yaml = """
+            a:
+              a1:
+                key: val
+              a2:
+                key: val
+            b:
+              b1:
+                key: val
+        """.trimIndent()
+        val html = converter.convert(yaml)
+        assertContainsSectionHeading(html, "h1", "1.", "a")
+        assertContainsSectionHeading(html, "h2", "1.1", "a1")
+        assertContainsSectionHeading(html, "h2", "1.2", "a2")
+        assertContainsSectionHeading(html, "h1", "2.", "b")
+        assertContainsSectionHeading(html, "h2", "2.1", "b1")
+    }
+
+    @Test
+    fun `section numbers are hidden by default`() {
+        val yaml = """
+            config:
+              key: value
+        """.trimIndent()
+        val html = converter.convert(yaml)
+        assertContains(html, "section-number")
+        assertContains(html, ".section-number")
+        assertContains(html, "display: none")
+        assertContains(html, "numbering-toggle")
+    }
+
     private fun assertContains(html: String, expected: String) {
         assertTrue(
             "Expected HTML to contain '$expected', but it was not found.\nHTML: ${html.take(500)}...",
+            html.contains(expected)
+        )
+    }
+
+    /** Asserts heading contains section number span + text, e.g. <h1><span class="section-number">1.</span> config</h1> */
+    private fun assertContainsSectionHeading(html: String, tag: String, number: String, text: String) {
+        val expected = "<$tag><span class=\"section-number\">${number}</span> $text</$tag>"
+        assertTrue(
+            "Expected HTML to contain '$expected', but it was not found.\nHTML: ${html.take(1000)}...",
+            html.contains(expected)
+        )
+    }
+
+    /** Asserts heading with only a section number (no text), e.g. <h2><span class="section-number">2.1</span> </h2> */
+    private fun assertContainsSectionNumber(html: String, tag: String, number: String) {
+        val expected = "<$tag><span class=\"section-number\">${number}</span>"
+        assertTrue(
+            "Expected HTML to contain '$expected', but it was not found.\nHTML: ${html.take(1000)}...",
             html.contains(expected)
         )
     }

@@ -5,6 +5,18 @@ import org.yaml.snakeyaml.error.YAMLException
 
 class YamlToHtmlConverter {
 
+    private class SectionNumberer {
+        private val counters = mutableListOf<Int>()
+
+        fun next(depth: Int): String {
+            while (counters.size < depth) counters.add(0)
+            for (i in depth until counters.size) counters[i] = 0
+            counters[depth - 1]++
+            val number = (0 until depth).joinToString(".") { counters[it].toString() }
+            return if (depth == 1) "$number." else number
+        }
+    }
+
     fun convert(yamlText: String, darkTheme: Boolean = false): String {
         if (yamlText.isBlank()) {
             return buildFullHtml(emptyList(), darkTheme)
@@ -30,12 +42,14 @@ class YamlToHtmlConverter {
         if (documents.isEmpty()) {
             sb.append("<p class=\"empty\">(empty document)</p>")
         } else if (documents.size == 1) {
-            renderNode(documents[0], 1, null, sb)
+            val numberer = SectionNumberer()
+            renderNode(documents[0], 1, null, sb, numberer)
         } else {
             for ((i, doc) in documents.withIndex()) {
                 if (i > 0) sb.append("<hr>")
                 sb.append(heading(1, "Document ${i + 1}"))
-                renderNode(doc, 2, null, sb)
+                val docNumberer = SectionNumberer()
+                renderNode(doc, 2, null, sb, docNumberer)
             }
         }
 
@@ -61,19 +75,19 @@ class YamlToHtmlConverter {
         return sb.toString()
     }
 
-    internal fun renderNode(node: Any?, depth: Int, parentKey: String?, sb: StringBuilder) {
+    private fun renderNode(node: Any?, depth: Int, parentKey: String?, sb: StringBuilder, numberer: SectionNumberer) {
         when {
             node == null -> sb.append("<p class=\"empty\">(empty)</p>")
             node is Map<*, *> -> {
                 @Suppress("UNCHECKED_CAST")
-                renderMapping(node as Map<String, Any?>, depth, sb)
+                renderMapping(node as Map<String, Any?>, depth, sb, numberer)
             }
-            node is List<*> -> renderSequence(node, depth, parentKey, sb)
+            node is List<*> -> renderSequence(node, depth, parentKey, sb, numberer)
             else -> sb.append("<p>").append(escapeHtml(formatScalar(node))).append("</p>")
         }
     }
 
-    private fun renderMapping(map: Map<String, Any?>, depth: Int, sb: StringBuilder) {
+    private fun renderMapping(map: Map<String, Any?>, depth: Int, sb: StringBuilder, numberer: SectionNumberer) {
         if (map.isEmpty()) {
             sb.append("<p class=\"empty\">(empty mapping)</p>")
             return
@@ -84,27 +98,15 @@ class YamlToHtmlConverter {
             return
         }
 
-        // Mixed: group consecutive scalar entries into tables, complex entries get headings
-        val scalarBuffer = mutableListOf<Pair<String, Any?>>()
-
+        // Mixed: each entry gets its own section number
         for ((key, value) in map) {
             if (isScalar(value)) {
-                scalarBuffer.add(key to value)
+                sb.append(heading(depth, "", numberer))
+                renderScalarTable(listOf(key to value), sb)
             } else {
-                // Flush scalar buffer as table
-                if (scalarBuffer.isNotEmpty()) {
-                    renderScalarTable(scalarBuffer.toList(), sb)
-                    scalarBuffer.clear()
-                }
-                // Render complex entry with heading
-                sb.append(heading(depth, key))
-                renderNode(value, depth + 1, key, sb)
+                sb.append(heading(depth, key, numberer))
+                renderNode(value, depth + 1, key, sb, numberer)
             }
-        }
-
-        // Flush remaining scalars
-        if (scalarBuffer.isNotEmpty()) {
-            renderScalarTable(scalarBuffer.toList(), sb)
         }
     }
 
@@ -127,7 +129,7 @@ class YamlToHtmlConverter {
         sb.append("</tbody></table>")
     }
 
-    private fun renderSequence(items: List<*>, depth: Int, parentKey: String?, sb: StringBuilder) {
+    private fun renderSequence(items: List<*>, depth: Int, parentKey: String?, sb: StringBuilder, numberer: SectionNumberer) {
         if (items.isEmpty()) {
             sb.append("<p class=\"empty\">(empty list)</p>")
             return
@@ -137,7 +139,7 @@ class YamlToHtmlConverter {
             isListOfScalars(items) -> renderScalarList(items, sb)
             isListOfMappings(items) -> {
                 @Suppress("UNCHECKED_CAST")
-                renderMappingList(items as List<Map<String, Any?>>, depth, sb)
+                renderMappingList(items as List<Map<String, Any?>>, depth, sb, numberer)
             }
             else -> {
                 // Mixed list
@@ -147,7 +149,7 @@ class YamlToHtmlConverter {
                     if (isScalar(item)) {
                         sb.append(escapeHtml(formatScalar(item)))
                     } else {
-                        renderNode(item, depth, parentKey, sb)
+                        renderNode(item, depth, parentKey, sb, numberer)
                     }
                     sb.append("</li>")
                 }
@@ -170,11 +172,12 @@ class YamlToHtmlConverter {
         sb.append("</ul>")
     }
 
-    private fun renderMappingList(items: List<Map<String, Any?>>, depth: Int, sb: StringBuilder) {
+    private fun renderMappingList(items: List<Map<String, Any?>>, depth: Int, sb: StringBuilder, numberer: SectionNumberer) {
         for ((i, item) in items.withIndex()) {
             if (i > 0) sb.append("<hr class=\"list-separator\">")
             sb.append("<section class=\"list-item\">")
-            renderMapping(item, depth, sb)
+            sb.append(heading(depth, "", numberer))
+            renderMapping(item, depth + 1, sb, numberer)
             sb.append("</section>")
         }
     }
@@ -187,12 +190,16 @@ class YamlToHtmlConverter {
   <button onclick="zoomOut()" title="Zoom Out">&minus;</button>
   <button onclick="zoomReset()" id="zoom-level" title="Reset Zoom">100%</button>
   <button onclick="zoomIn()" title="Zoom In">+</button>
+  <span class="bar-separator"></span>
+  <button onclick="toggleNumbering()" id="numbering-toggle" title="Toggle Section Numbers">1.2.3</button>
 </div>
 <script>
-var currentZoom = 100;
+var currentZoom = parseInt(localStorage.getItem('yamlPreviewZoom')) || 100;
+var numberingOn = localStorage.getItem('yamlPreviewNumbering') === 'true';
 function applyZoom() {
   document.getElementById('content').style.zoom = currentZoom + '%';
   document.getElementById('zoom-level').textContent = currentZoom + '%';
+  localStorage.setItem('yamlPreviewZoom', currentZoom);
 }
 function zoomIn() {
   if (currentZoom < 200) { currentZoom += 10; applyZoom(); }
@@ -203,18 +210,34 @@ function zoomOut() {
 function zoomReset() {
   currentZoom = 100; applyZoom();
 }
+function toggleNumbering() {
+  numberingOn = !numberingOn;
+  document.body.classList.toggle('show-numbering', numberingOn);
+  document.getElementById('numbering-toggle').classList.toggle('active', numberingOn);
+  localStorage.setItem('yamlPreviewNumbering', numberingOn);
+}
+(function restoreState() {
+  if (currentZoom !== 100) applyZoom();
+  if (numberingOn) {
+    document.body.classList.add('show-numbering');
+    document.getElementById('numbering-toggle').classList.add('active');
+  }
+})();
 </script>
 """.trimIndent()
     }
 
     // --- Utilities ---
 
-    private fun heading(depth: Int, text: String): String {
+    private fun heading(depth: Int, text: String, numberer: SectionNumberer? = null): String {
+        val prefix = numberer?.next(depth) ?: ""
+        val numberSpan = if (prefix.isNotEmpty()) "<span class=\"section-number\">${escapeHtml(prefix)}</span> " else ""
+        val content = numberSpan + escapeHtml(text)
         return if (depth in 1..6) {
-            "<h$depth>${escapeHtml(text)}</h$depth>"
+            "<h$depth>$content</h$depth>"
         } else {
             "<div class=\"heading-deep\" style=\"margin-left:${(depth - 6) * 16}px\">" +
-                "<strong>${escapeHtml(text)}</strong></div>"
+                "<strong>$content</strong></div>"
         }
     }
 
@@ -403,6 +426,31 @@ section.list-item {
     font-size: 12px;
     min-width: 48px;
     text-align: center;
+}
+#zoom-bar .bar-separator {
+    width: 1px;
+    height: 16px;
+    background: $borderColor;
+    margin: 0 2px;
+}
+#zoom-bar #numbering-toggle {
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+#zoom-bar #numbering-toggle:hover {
+    opacity: 0.8;
+}
+#zoom-bar #numbering-toggle.active {
+    background: ${if (darkTheme) "#2675bf" else "#2979ff"};
+    color: #ffffff;
+    opacity: 1;
+    border-radius: 4px;
+}
+.section-number {
+    display: none;
+}
+body.show-numbering .section-number {
+    display: inline;
 }
 """.trimIndent()
     }
