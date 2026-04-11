@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "yaml.visual.preview.plugin.hashizume.online"
-version = "1.0.4"
+version = "1.0.5"
 
 repositories {
     mavenCentral()
@@ -31,7 +31,7 @@ intellijPlatform {
     pluginConfiguration {
         ideaVersion {
             sinceBuild = "241"
-            untilBuild = "253.*"
+
         }
     }
     signing {
